@@ -7,8 +7,7 @@ from typing import Optional
 class Car(BaseModel):
     
     id: int = Field(...,ge=1)
-    max_seats: int = Field(...,ge=4, le=6)
-    free_seats: int
+    seats: int = Field(...,ge=4, le=6)
     
     def allocate(self, passengers : int):
         if self.can_allocate(passengers):

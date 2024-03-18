@@ -9,7 +9,7 @@ from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED
 import uvicorn
 import sqlite3
 import logging
-from ListaCircular import ListaCircular
+from CircularQueue import CircularQueue
 
 app = FastAPI()
 

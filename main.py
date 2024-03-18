@@ -8,7 +8,7 @@ import uvicorn
 import sqlite3
 import logging
 import queue
-from ListaCircular import ListaCircular
+from CircularQueue import CircularQueue
 from PriorityQueue import PriorityQueue
 
 logger = logging.getLogger()
@@ -20,7 +20,7 @@ app = FastAPI(debug=True)
 # Global variables to store car data and journey information
 
 journeys = []
-cars = ListaCircular()
+cars = CircularQueue()
 
 grouplist = PriorityQueue()
 
@@ -50,50 +50,20 @@ async def add_journey(group : dict):
 @app.put('/cars')
 async def reset_and_add_cars(car_list: List[Car]):
     global cars
-    car_tuple : tuple
+    
+    cars.reset()
     
     for car in car_list:
         if car.id < 1 or not (4 <= car.seats <= 6):
             raise HTTPException(status_code=400, detail="Bad Request")
-  
-    try:
-        sqlite3conn = sqlite3.connect(':memory:')
-        cursor = sqlite3conn.cursor()
         
-        sqlite_create_car_table_query = '''CREATE TABLE IF NOT EXISTS CAR (
-                                    id INTEGER PRIMARY KEY,
-                                    seats INTEGER NOT NULL,
-                                    empty_seats INTEGER NOT NULL);'''
+    for car in car_list:
+        cars.add_item(car)
+        logger.warning("Car created!")
+ 
+    print(f"Cars Queue: {cars.list}")
         
-        cursor.execute(sqlite_create_car_table_query)
-        sqlite3conn.commit()
-        logger.warning("sqlite3 CAR created!")
-        
-        # Adding a Car
-        sql_add_car = "INSERT INTO CAR VALUES (?,?,?)"
-        
-        for car in car_list:
-            car_tuple = (car.id, car.seats, car.seats)
-            cursor.execute(sql_add_car, car_tuple)
-            cars.agregar_elemento(car_tuple)
-            sqlite3conn.commit()
-            logger.warning("Car created!")
-        
-        sql_sel = "SELECT * FROM CAR"
-        cursor.execute(sql_sel)
-        carsbd = cursor.fetchall()
-        logger.warning(f"Cars created: {carsbd}")
-        logger.warning(f"Circurlar List Cars created:{cars.lista}")
-        cursor.close()
-        
-    except sqlite3.Error as e:
-        logger.warning(f"Error while creating table: {e}")
-    
-    finally:
-        
-        if (sqlite3conn):
-            sqlite3conn.close()
-            logger.warning("In Memory DB closed!")
+   
             
     return {"output" : "ok"}
 
