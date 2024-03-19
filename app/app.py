@@ -3,12 +3,13 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError, Field
 from model import Car, Journey, Group
 from typing import List, Any
-from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED
+from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED, HTTP_400_BAD_REQUEST
 from starlette.requests import Request
 import uvicorn
 from logging_conf import setup as logging_conf
 import logging
 import random
+import json
 
 from CircularQueue import CircularQueue
 from PriorityQueue import PriorityQueue
@@ -22,12 +23,13 @@ logging_conf()
 class Application:
     
      # Global variables to store car data and journey information
-
-
+    LOW_PRIORITY = 1
+    MID_PRIORITY = 5
+    HIGH_PRIORITY = 7
     
     def __init__(self):
         
-        self.journeys = []
+        self.journeys : List[Group] = []
         self.cars = CircularQueue()
         self.grouplist = PriorityQueue()
     
@@ -47,24 +49,28 @@ class Application:
                 self.cars.add_item(car)
             
             
-        except:
+        except Exception:
             raise HTTPException(status_code=400, detail="Bad Request")
             
         logging.debug(f"Cars Queue: {self.cars.list}")
         return Response(status_code=HTTP_200_OK)
         
 
-    def add_journey(group : dict):
-        global grouplist
-
-        # Comprobación básica de la estructura del JSON
-        if "id" not in group or "people" not in group:
-            raise HTTPException(status_code=400, detail="Bad Request")
-
-        try: 
-            grouplist.enqueue_with_priority(random.randint(1,5), group)
-            print(grouplist._elements)
+    def add_journey(self, group : Group):
+       
+       
+        
+        try:
+            # if self.journeys.is_group_id_present(group["id"]):
+            #     return Response(status_code=HTTP_400_BAD_REQUEST)
+          
+            self.journeys.append(group)
+            self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, group)
+            logging.info(f"Journeys: {self.grouplist._elements}")
+            logging.info(f"PriorityQueue: {self.grouplist._elements}")
+            pass
         except:
+            logging.exception("An exception")
             raise HTTPException(status_code=400, detail="Bad Request")
         
         """
@@ -110,8 +116,6 @@ def init_app():
     
     App = Application()
     app = FastAPI(debug=True)
-
-   
     
     @app.get('/')
     async def ready():
@@ -140,9 +144,7 @@ def init_app():
     @app.post('/getitem')
     def get_item():
         return App.getitem()
-        
-    
-    
+
     return app
 
     

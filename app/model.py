@@ -35,4 +35,22 @@ class Group(BaseModel):
 
 class Journey(BaseModel):
     id: int
+    _groups_ids: set = set()  # Conjunto para almacenar las IDs únicas de los grupos
+
     groups: List[Group]
+
+    @property
+    def groups(self):
+        return self._groups
+
+    @groups.setter
+    def groups(self, value):
+        for group in value:
+            if group.id in self._groups_ids:
+                raise ValueError(f"La ID {group.id} ya está en uso en la lista de grupos")
+            self._groups_ids.add(group.id)
+        self._groups = value
+
+    def is_group_id_present(self, group_id: int) -> bool:
+        """Verifica si una ID de grupo está presente en la lista de grupos."""
+        return group_id in self._groups_ids
