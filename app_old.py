@@ -1,5 +1,5 @@
-import model
-from services import Service, GroupDoesNotExistError
+import app.model as model
+from app.services import Service, GroupDoesNotExistError
 from fastapi import FastAPI, APIRouter, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError, Field
@@ -9,7 +9,7 @@ from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED
 import uvicorn
 import sqlite3
 import logging
-from CircularQueue import CircularQueue
+from app.CircularQueue import CircularQueue
 
 app = FastAPI()
 
