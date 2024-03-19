@@ -5,23 +5,24 @@ from model import Car, Journey, Group
 from typing import List, Any
 from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED
 import uvicorn
-import sqlite3
+from logging_conf import setup as logging_conf
 import logging
-import queue
+import random
+
 from CircularQueue import CircularQueue
 from PriorityQueue import PriorityQueue
 
-logger = logging.getLogger()
-FORMAT = '%(levelname)s: %(asctime)s -> %(message)s'
-logging.basicConfig(format=FORMAT)
+import asyncio
 
+
+logging_conf()
 app = FastAPI(debug=True)
 
 # Global variables to store car data and journey information
 
+
 journeys = []
 cars = CircularQueue()
-
 grouplist = PriorityQueue()
 
 @app.get('/')
@@ -42,15 +43,28 @@ async def add_journey(group : dict):
     if group["id"] < 1 or not (1 <= group["people"] <= 6):
         raise HTTPException(status_code=400, detail="Bad Request")
 
-    grouplist.insert(group , 1)
-    grouplist.print_elements()
+   
+    grouplist.enqueue_with_priority(random.randint(1,5), group)
+    print(grouplist._elements)
+    
+ 
     return {"GroupAdded": "Ok"}
 
+#Adding pop
+@app.post('/getitem')
+def get_item():
+    
+    item = grouplist.dequeue()
+    print("Dequeued item:", item)
+
+    print(grouplist._elements)
+
+    
 # Adding cars Endpoint
 @app.put('/cars')
 async def reset_and_add_cars(car_list: List[Car]):
     global cars
-    
+       
     cars.reset()
     
     for car in car_list:
@@ -59,12 +73,10 @@ async def reset_and_add_cars(car_list: List[Car]):
         
     for car in car_list:
         cars.add_item(car)
-        logger.warning("Car created!")
+        logging.debug("Car created!")
  
-    print(f"Cars Queue: {cars.list}")
-        
-   
-            
+    logging.debug(f"Cars Queue: {cars.list}")
+
     return {"output" : "ok"}
 
 if __name__ == "__main__":
