@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional, ClassVar
+from typing import List, Optional, ClassVar, Set
 
 
 class Car(BaseModel):
@@ -19,38 +19,28 @@ class Car(BaseModel):
 
     def allocate(self, passengers: int):
         if self.can_allocate(passengers):
-            self.free_seats = self.free_seats - passengers
+            self.seats = self.seats - passengers
 
     def deallocate(self, passengers: int):
-        self.free_seats = self.free_seats + passengers
+        self.seats = self.seats + passengers
 
     def can_allocate(self, passengers: int) -> bool:
-        return self.free_seats >= passengers
+        return self.seats >= passengers
     
     
 class Group(BaseModel):
     id: int = Field(...,ge=1)
     people: int = Field(..., ge=1, le=6)
-    car_assigned: Optional[Car]
+    car_assigned: Optional[Car] = None
 
 class Journey(BaseModel):
-    id: int
-    _groups_ids: set = set()  # Conjunto para almacenar las IDs únicas de los grupos
+    groups: List[Group] = []
 
-    groups: List[Group]
+    def add_group(self, group: Group):
+        self.groups.append(group)
 
-    @property
-    def groups(self):
-        return self._groups
+    def remove_group_by_id(self, group_id: int):
+        self.groups = [grp for grp in self.groups if grp.id != group_id]
+  
 
-    @groups.setter
-    def groups(self, value):
-        for group in value:
-            if group.id in self._groups_ids:
-                raise ValueError(f"La ID {group.id} ya está en uso en la lista de grupos")
-            self._groups_ids.add(group.id)
-        self._groups = value
-
-    def is_group_id_present(self, group_id: int) -> bool:
-        """Verifica si una ID de grupo está presente en la lista de grupos."""
-        return group_id in self._groups_ids
+    

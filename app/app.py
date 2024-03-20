@@ -29,8 +29,8 @@ class Application:
     
     def __init__(self):
         
-        self.journeys : List[Group] = []
-        self.cars = CircularQueue()
+        self.journeys  = Journey()
+        self.cars : List[Car] = []
         self.grouplist = PriorityQueue()
     
     def add_cars(self, car_list: List[Car], req : Request):
@@ -38,41 +38,25 @@ class Application:
         # if req.headers != 'application/json':
         #     raise HTTPException(status_code=400, detail="Bad Request")
         
-        self.cars.reset()
+        
         
         # for car in car_list:
         #     if car.id < 1 or not (4 <= car.seats <= 6):
         #         raise HTTPException(status_code=400, detail="Bad Request")
             
         try:
-            for car in car_list:
-                self.cars.add_item(car)
+            self.cars = car_list
             
             
         except Exception:
             raise HTTPException(status_code=400, detail="Bad Request")
             
-        logging.debug(f"Cars Queue: {self.cars.list}")
+        logging.debug(f"Cars Queue: {self.cars}")
         return Response(status_code=HTTP_200_OK)
         
 
     def add_journey(self, group : Group):
-       
-       
-        
-        try:
-            # if self.journeys.is_group_id_present(group["id"]):
-            #     return Response(status_code=HTTP_400_BAD_REQUEST)
-          
-            self.journeys.append(group)
-            self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, group)
-            logging.info(f"Journeys: {self.grouplist._elements}")
-            logging.info(f"PriorityQueue: {self.grouplist._elements}")
-            pass
-        except:
-            logging.exception("An exception")
-            raise HTTPException(status_code=400, detail="Bad Request")
-        
+    
         """
         Vale aquí serían los siguientes pasos
         1. Una vez hecha la petición y almacenado el grupo tal vez había que meterlos con el modelo Group, 
@@ -85,7 +69,38 @@ class Application:
         5. Si ha encontrado sitio asignamos el coche al grupo y restamos los sitios libres del grupo, como no se puede
         usar otro viaje a la vez nos quedamos así.
         """
-    
+        
+        try:
+            # if self.journeys.is_group_id_present(group["id"]):
+            #     return Response(status_code=HTTP_400_BAD_REQUEST)
+            grupo = Group(**group) # Convertivmos a model.group             
+                
+            for car in self.cars:
+                if car.can_allocate(grupo.people):
+                    # Start Journey
+                    car.allocate(grupo.people)
+                    grupo.car_assigned = car
+                    self.journeys.add_group(grupo)
+                    self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, grupo)
+                    break
+                
+                else:
+                    self.grouplist.enqueue_with_priority(self.HIGH_PRIORITY, grupo)
+
+                    break
+             
+           
+            # if self.journeys.groups
+            #     
+            logging.info(f"Journeys: {self.journeys.groups}")
+            logging.info(f"PriorityQueue: {self.grouplist._elements}")
+            logging.info(f"Cars Avail: {self.cars}")
+            
+
+        except:
+            logging.exception("An exception")
+            raise HTTPException(status_code=400, detail="Bad Request")
+        
         return Response(status_code=HTTP_200_OK)
 
     def drop_off():

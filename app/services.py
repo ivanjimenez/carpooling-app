@@ -120,7 +120,7 @@ class Service:
         return self.del_group(group_id)
 
     def find_car(self, seats: int):
-        sorted_cars = dict(sorted(self.cars.items(), key=lambda x: x[1].free_seats))
+        sorted_cars = dict(sorted(self.cars.items(), key=lambda x: x[1].seats))
         for car in sorted_cars.values():
             if car.can_allocate(seats):
                 return car
