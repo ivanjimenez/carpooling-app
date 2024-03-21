@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query, status, BackgroundTasks, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Query, status, BackgroundTasks, Response, Form
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError, Field
 from model import Car, Journey, Group
@@ -37,9 +37,7 @@ class Application:
         
         # if req.headers != 'application/json':
         #     raise HTTPException(status_code=400, detail="Bad Request")
-        
-        
-        
+     
         # for car in car_list:
         #     if car.id < 1 or not (4 <= car.seats <= 6):
         #         raise HTTPException(status_code=400, detail="Bad Request")
@@ -70,40 +68,77 @@ class Application:
         usar otro viaje a la vez nos quedamos así.
         """
         
+        """
+        Este método intenta asignar un grupo a un coche disponible.
+        Si no hay coches disponibles, encola el grupo en la cola prioritaria.
+        """
         try:
-            # if self.journeys.is_group_id_present(group["id"]):
-            #     return Response(status_code=HTTP_400_BAD_REQUEST)
-            grupo = Group(**group) # Convertivmos a model.group             
-                
+            group_model = Group(**group)
+
+            # Intentar asignar un coche disponible
+            car_assigned = None
             for car in self.cars:
-                if car.can_allocate(grupo.people):
-                    # Start Journey
-                    car.allocate(grupo.people)
-                    grupo.car_assigned = car
-                    self.journeys.add_group(grupo)
-                    # self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, grupo)
-                    break
-                
-                else:
-                    self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, grupo)
+                if car.can_allocate(group_model.people):
+                    car.allocate(group_model.people)
+                    group_model.car_assigned = car
+                    self.journeys.add_group(group_model)
+                    logging.info("Group assigned to a car.")
+                    self.print_queue()
+                    return Response(status_code=HTTP_200_OK)
 
-                    break
-             
-           
-            # if self.journeys.groups
-            #     
-            logging.info(f"Journeys: {self.journeys.groups}")
-            logging.info(f"PriorityQueue: {self.grouplist._elements}")
-            logging.info(f"Cars Avail: {self.cars}")
-            
+            # Si no se asigna a un coche, encolar en la cola prioritaria
+            self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, group_model)
+            logging.info("Group enqueued in priority queue.")
+            self.print_queue()
 
-        except:
+
+            # Intentar asignar coches a grupos en la cola prioritaria
+            self.assign_cars_to_priority_groups()
+
+        except Exception as e:
             logging.exception("An exception")
             raise HTTPException(status_code=400, detail="Bad Request")
-        
+
         return Response(status_code=HTTP_200_OK)
 
+    def print_queue(self):
+        logging.info(f"Journeys: {self.journeys.groups}")
+        logging.info(f"PriorityQueue: {self.grouplist._elements}")
+        logging.info(f"Cars Avail: {self.cars}")
 
+    
+    def assign_cars_to_priority_groups(self):
+        """
+        Este método intenta asignar coches a grupos en la cola prioritaria.
+        """
+        unassigned_groups = []  # Lista para almacenar temporalmente grupos no asignados
+
+        # Intentamos asignar coches a grupos en la cola prioritaria
+        while not self.grouplist.is_empty():
+            group = self.grouplist.dequeue()
+            assigned = False
+
+            # Intentamos asignar el grupo a un coche
+            for car in self.cars:
+                if car.can_allocate(group.people):
+                    car.allocate(group.people)
+                    group.car_assigned = car
+                    self.journeys.add_group(group)
+                    logging.info("Priority group assigned to a car.")
+                    assigned = True
+                    break
+
+            # Si no se puede asignar, añadimos el grupo a la lista de no asignados
+            if not assigned:
+                unassigned_groups.append(group)
+
+        # Devolvemos los grupos no asignados a la cola prioritaria
+        for group in unassigned_groups:
+            self.grouplist.enqueue_with_priority(self.HIGH_PRIORITY, group)
+
+        # Si no hay coches disponibles, informamos
+        if not assigned:
+            logging.info("No available cars for priority groups.")
 
     def drop_off():
         """
@@ -116,18 +151,26 @@ class Application:
         pass
 
 
-    def locate():
+    def locate(self, group_id: int):
+        
         """
-        1. Devuelve coche del ID del grupo con el que esté viajando en formato json
-        2. Si el grupo está esperando NOT FOUND
+            Aquí falta esto: 
+            204 No Content When the group is waiting to be assigned to a car.
+
+            404 Not Found When the group is not to be found.
+
+            400 Bad Request When there is a failure in the request format or the
+            payload can't be unmarshalled.
         """
-        pass
+        
+        # Buscar el coche asignado al grupo con el ID proporcionado
+        for car in self.cars:
+            if car.id == group_id:
+                return car
+        # Si no se encuentra el grupo, devolver un mensaje indicando que no se encontró el coche
+        return {"message": "No car found for the group."}
 
-    def getitem():
-        item = grouplist.dequeue()
-        print("Dequeued item:", item)
-
-        print(grouplist._elements)
+   
 
 def init_app():
     
@@ -153,14 +196,11 @@ def init_app():
     async def drop_off():
        return App.drop_off()
 
-    @app.post('/locate/{ID}')
-    async def locate():
-       return App.locate()
-    
-    #Adding pop
-    @app.post('/getitem')
-    def get_item():
-        return App.getitem()
+    # Agregar endpoint para localizar un coche por ID de grupo
+    @app.post('/locate')
+    async def locate(group_id: int = Form(...)):
+        return App.locate(group_id)
+
 
     return app
 

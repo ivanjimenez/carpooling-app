@@ -17,3 +17,10 @@ class PriorityQueue:
 
     def dequeue(self):
         return heappop(self._elements)[-1]
+
+    def is_empty(self):
+        """
+        Método para verificar si la cola prioritaria está vacía.
+        Devuelve True si la cola está vacía, False en caso contrario.
+        """
+        return len(self._elements) == 0
