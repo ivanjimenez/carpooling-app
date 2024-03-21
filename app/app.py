@@ -81,11 +81,11 @@ class Application:
                     car.allocate(grupo.people)
                     grupo.car_assigned = car
                     self.journeys.add_group(grupo)
-                    self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, grupo)
+                    # self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, grupo)
                     break
                 
                 else:
-                    self.grouplist.enqueue_with_priority(self.HIGH_PRIORITY, grupo)
+                    self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, grupo)
 
                     break
              
@@ -102,6 +102,8 @@ class Application:
             raise HTTPException(status_code=400, detail="Bad Request")
         
         return Response(status_code=HTTP_200_OK)
+
+
 
     def drop_off():
         """
