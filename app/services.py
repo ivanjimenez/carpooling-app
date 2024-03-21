@@ -1,137 +1,195 @@
+from app.priority_queue import PriorityQueue
+from app.model import Car, Group, Journey
+
+from fastapi import HTTPException, Response
+from starlette.requests import Request
+from starlette.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+
 import logging
-from typing import List, Dict
+from typing import List
 
-import app.model as model
-from app.model import Group
+class Application:
 
+     # Global variables to store car data and journey information
+    LOW_PRIORITY = 1
+    MID_PRIORITY = 5
+    HIGH_PRIORITY = 7
 
-class ServiceError(Exception):
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(message)
-
-    def __str__(self):
-        return self.message
-
-
-class GroupDoesNotExistError(ServiceError):
-    """Raised when a group does not exist
-
-    """
-
-    def __init__(self, group_id: int):
-        super().__init__(f"The group {group_id} does not exist")
-
-
-class Service:
     def __init__(self):
-        self.cars: Dict[int, model.Car] = {}
-        self.groups: List[model.Group] = []
 
-    def add_cars(self, cars: List[model.Car]) -> None:
-        logging.debug(f"Adding {cars=}")
-        self.cars = {}
-        self.groups = []
-        for car in cars:
-            if self.cars.get(car.id, False):
-                raise ValueError(f'{car.id} is a repeated car ID')
-            if car.max_seats < 4 or car.max_seats > 6:
-                self.cars = {}
-                self.groups = []
-                raise ValueError(f'{car.max_seats} is not a valid seats number')
-            self.cars[car.id] = car
+        self.journeys  = Journey()
+        self.cars : List[Car] = []
+        self.grouplist = PriorityQueue()
 
-    def get_cars(self) -> List[model.Car]:
-        return list(self.cars.values())
+    def add_cars(self, car_list: List[Car], req : Request):
 
-    def add_car(self, car):
-        self.cars[car.id] = car
+        # if req.headers != 'application/json':
+        #     raise HTTPException(status_code=400, detail="Bad Request")
 
-    def get_car(self, car_id) -> model.Car:
-        return self.cars.get(car_id)
+        # for car in car_list:
+        #     if car.id < 1 or not (4 <= car.seats <= 6):
+        #         raise HTTPException(status_code=400, detail="Bad Request")
 
-    def del_car(self, car_id):
         try:
-            del self.cars[car_id]
-        except KeyError:
-            pass
+            self.cars = car_list
 
-    def add_groups(self, groups: List[Group]):
-        logging.debug(f"Adding {groups=}")
-        self.groups = groups
 
-    def get_groups(self) -> List[Group]:
-        return self.groups
+        except Exception:
+            raise HTTPException(status_code=400, detail="Bad Request")
 
-    def add_group(self, group: Group):
-        self.groups.append(group)
+        logging.debug(f"Cars Queue: {self.cars}")
+        return Response(status_code=HTTP_200_OK)
 
-    def get_group(self, group_id: int) -> Group:
-        logging.debug(f"Find group with {group_id=}")
-        for group in self.groups:
-            if group.Id == group_id:
-                return group
-        logging.debug(f"Groups {self.groups}")
-        raise GroupDoesNotExistError(group_id)
+    def add_journey(self, group : Group):
 
-    def del_group(self, group_id) -> bool:
-        """Deleting a group from the de service.
-
-        :param group_id: The id of the group to be deleted.
-        :return: True if the group was deleted.
-        :raise: GroupDoesNotExistError if the group does not exist.
         """
-        for ix, group in enumerate(self.groups):
-            if group.Id == group_id:
-                del self.groups[ix]
-                return True
-        raise GroupDoesNotExistError(group_id)
+        Vale aquí serían los siguientes pasos
+        1. Una vez hecha la petición y almacenado el grupo tal vez había que meterlos con el modelo Group, 
+        pero no lo vamos a encolar porque si no hay sitio tendremos que usar otra prioridad. 
+        2. Después debe iterar sobre la lista de coches y de aquellos que están disponibles, buscar el coche
+        que tenga sitios libres para el viaje. 
+        3. En caso de no tener sitio se inserta con una prioridad  + 1, hay que tener en cuenta que igual este grupo
+        no encuentra varias veces sitio y se tiene que ir. 
+        4. De hecho si le ha pasado más veces asignamos una de +5, así nos aseguramos que no desista.
+        5. Si ha encontrado sitio asignamos el coche al grupo y restamos los sitios libres del grupo, como no se puede
+        usar otro viaje a la vez nos quedamos así.
+        """
 
-    def journey(self, group_id: int, passengers: int) -> None:
-        logging.debug(f"Journey for group {group_id} with {passengers} passenger")
+        """
+        Este método intenta asignar un grupo a un coche disponible.
+        Si no hay coches disponibles, encola el grupo en la cola prioritaria.
+        """
         try:
-            group = self.get_group(group_id)
-        except GroupDoesNotExistError:
-            group = Group(group_id, passengers)
-            self.add_group(group)
+            group_model = Group(**group)
 
-        if group.assigned_to:
-            return None
+            # Intentar asignar un coche disponible
+            car_assigned = None
+            for car in self.cars:
+                if car.can_allocate(group_model.people):
+                    car.allocate(group_model.people)
+                    group_model.car_assigned = car
+                    self.journeys.add_group(group_model)
+                    logging.info("Group assigned to a car.")
+                    self.print_queue()
+                    return Response(status_code=HTTP_200_OK)
 
-        car = self.find_car(group.passengers)
-        if car:
-            car.allocate(group.passengers)
-            group.assigned_to = car
+            # Si no se asigna a un coche, encolar en la cola prioritaria
+            self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, group_model)
+            logging.info("Group enqueued in priority queue.")
+            self.print_queue()
 
-        logging.debug(f"Setup journey for {group=}")
 
-    def drop_off(self, group_id: int) -> bool:
-        """Drop a group from the service.
+            # Intentar asignar coches a grupos en la cola prioritaria
+            self.assign_cars_to_priority_groups()
 
-        :param group_id: The group id to be deleted
-        :return: True if the group was successfully dropped
-        :raise: GroupDoesNotExistError if the group does not exist
+        except Exception as e:
+            logging.exception("An exception")
+            raise HTTPException(status_code=400, detail="Bad Request")
+
+        return Response(status_code=HTTP_200_OK)
+
+    def print_queue(self):
+        logging.info(f"Journeys: {self.journeys.groups}")
+        logging.info(f"PriorityQueue: {self.grouplist._elements}")
+        logging.info(f"Cars Avail: {self.cars}")
+
+    def assign_cars_to_priority_groups(self):
         """
-        group = self.get_group(group_id)
-        if group.assigned_to:
-            group.assigned_to.deallocate(group.passengers)
+        Este método intenta asignar coches a grupos en la cola prioritaria.
+        """
+        unassigned_groups = []  # Lista para almacenar temporalmente grupos no asignados
 
-        logging.debug(f"Dropping group {group=}")
-        return self.del_group(group_id)
+        # Intentamos asignar coches a grupos en la cola prioritaria
+        while not self.grouplist.is_empty():
+            group = self.grouplist.dequeue()
+            assigned = False
 
-    def find_car(self, seats: int):
-        sorted_cars = dict(sorted(self.cars.items(), key=lambda x: x[1].seats))
-        for car in sorted_cars.values():
-            if car.can_allocate(seats):
-                return car
-        return None
+            # Intentamos asignar el grupo a un coche
+            for car in self.cars:
+                if car.can_allocate(group.people):
+                    car.allocate(group.people)
+                    group.car_assigned = car
+                    self.journeys.add_group(group)
+                    logging.info("Priority group assigned to a car.")
+                    assigned = True
+                    break
 
-    def reassign(self):
-        groups = self.get_groups()
+            # Si no se puede asignar, añadimos el grupo a la lista de no asignados
+            if not assigned:
+                unassigned_groups.append(group)
 
-        for group in groups:
-            if not group.assigned_to:
-                car = self.find_car(group.passengers)
-                if car:
-                    car.allocate(group.passengers)
-                    group.assigned_to = car
+        # Devolvemos los grupos no asignados a la cola prioritaria
+        for group in unassigned_groups:
+            self.grouplist.enqueue_with_priority(self.HIGH_PRIORITY, group)
+
+        # Si no hay coches disponibles, informamos
+        if not assigned:
+            logging.info("No available cars for priority groups.")
+
+    def drop_off(self, group_id : int):
+        """
+        1. Búsqueda por ID en la lista de grupos y verificar si está viajando, pues si no está viajando
+        no tiene sentido borrarlo
+        2. Si está viajando querrá decir que finalizamos viaje. Es decir, que liberamos los sitios del coche
+        y borramos el grupo de personas.
+        """
+        try:
+
+            # Test if group id is in priorityqueue or is in journey
+            pq_group_id :bool = group_id in self.grouplist.get_group_ids()
+            model_group_id : bool = group_id in self.journeys.get_all_group_ids()
+
+            if (not pq_group_id and not model_group_id):
+                return Response(status_code=HTTP_404_NOT_FOUND)
+
+            if (pq_group_id):
+                self.grouplist.remove_group_by_id(group_id)
+                self.print_queue()
+
+            if (model_group_id):
+                gr = self.journeys.get_group_by_id(group_id)
+                for car in self.cars:
+                    if car.id == gr.car_assigned.id:
+                        car.deallocate(gr.people)
+                        break
+
+                # Call priority queue
+                self.assign_cars_to_priority_groups()
+
+                self.journeys.remove_group_by_id(group_id)
+
+                self.print_queue()
+
+        except:
+            return Response(status_code=HTTP_400_BAD_REQUEST)
+
+    def locate(self, group_id: int):
+
+        """
+            Aquí falta esto: 
+            [x] 204 No Content When the group is waiting to be assigned to a car.
+
+            [x] 404 Not Found When the group is not to be found.
+
+            400 Bad Request When there is a failure in the request format or the
+            payload can't be unmarshalled.
+        """
+        try:
+            logging.info(f"IDS: {self.grouplist.get_group_ids()}")
+
+            # Test if group id is in priorityqueue or is in journey
+            pq_group_id :bool = group_id in self.grouplist.get_group_ids()
+            model_group_id : bool = group_id in self.journeys.get_all_group_ids()
+
+            if (pq_group_id):
+                return Response(status_code=HTTP_204_NO_CONTENT)
+
+            if (not pq_group_id or not model_group_id):
+                return Response(status_code=HTTP_404_NOT_FOUND)
+
+            # Buscar el coche asignado al grupo con el ID proporcionado
+            for car in self.cars:
+                if car.id == group_id:
+                    return car
+        except:
+            return Response(status_code=HTTP_400_BAD_REQUEST)
