@@ -1,5 +1,5 @@
-from app.priority_queue import PriorityQueue
-from app.model import Car, Group, Journey
+from priority_queue import PriorityQueue
+from model import Car, Group, Journey
 
 from fastapi import HTTPException, Response
 from starlette.requests import Request
