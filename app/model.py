@@ -42,5 +42,19 @@ class Journey(BaseModel):
     def remove_group_by_id(self, group_id: int):
         self.groups = [grp for grp in self.groups if grp.id != group_id]
   
-
+    def get_all_group_ids(self):
+        """
+        Retorna una lista de todos los IDs de los grupos en el viaje.
+        """
+        return [group.id for group in self.groups]
+    
+    def get_group_by_id(self, group_id: int):
+        """
+        Retorna el elemento de grupo por ID de grupo.
+        Si no se encuentra ningún grupo con el ID especificado, retorna None.
+        """
+        for group in self.groups:
+            if group.id == group_id:
+                return group
+        return None
     

@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError, Field
 from model import Car, Journey, Group
 from typing import List, Any
-from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED, HTTP_400_BAD_REQUEST
+from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED, HTTP_400_BAD_REQUEST, HTTP_204_NO_CONTENT, HTTP_404_NOT_FOUND
 from starlette.requests import Request
 import uvicorn
 from logging_conf import setup as logging_conf
@@ -140,35 +140,75 @@ class Application:
         if not assigned:
             logging.info("No available cars for priority groups.")
 
-    def drop_off():
+    def drop_off(self, group_id : int):
         """
         1. Búsqueda por ID en la lista de grupos y verificar si está viajando, pues si no está viajando
         no tiene sentido borrarlo
         2. Si está viajando querrá decir que finalizamos viaje. Es decir, que liberamos los sitios del coche
         y borramos el grupo de personas.
         """
-        
-        pass
+        try:
+            
+            # Test if group id is in priorityqueue or is in journey
+            pq_group_id :bool = group_id in self.grouplist.get_group_ids()
+            model_group_id : bool = group_id in self.journeys.get_all_group_ids()
+            
+            if (not pq_group_id and not model_group_id):
+                return Response(status_code=HTTP_404_NOT_FOUND)
+            
+            if (pq_group_id):
+                self.grouplist.remove_group_by_id(group_id)
+                self.print_queue()
+            
+            if (model_group_id):
+                gr = self.journeys.get_group_by_id(group_id)
+                for car in self.cars:
+                    if car.id == gr.car_assigned.id:
+                        car.deallocate(gr.people)
+                        break
+                    
+                # Call priority queue
+                self.assign_cars_to_priority_groups()
+                
+                self.journeys.remove_group_by_id(group_id)
+                
+                self.print_queue()
+            
+        except:
+            return Response(status_code=HTTP_400_BAD_REQUEST)
 
 
     def locate(self, group_id: int):
         
         """
             Aquí falta esto: 
-            204 No Content When the group is waiting to be assigned to a car.
+            [x] 204 No Content When the group is waiting to be assigned to a car.
 
-            404 Not Found When the group is not to be found.
+            [x] 404 Not Found When the group is not to be found.
 
             400 Bad Request When there is a failure in the request format or the
             payload can't be unmarshalled.
         """
+        try: 
+            logging.info(f"IDS: {self.grouplist.get_group_ids()}")
+            
+            # Test if group id is in priorityqueue or is in journey
+            pq_group_id :bool = group_id in self.grouplist.get_group_ids()
+            model_group_id : bool = group_id in self.journeys.get_all_group_ids()
+            
+            if (pq_group_id):
+                return Response(status_code=HTTP_204_NO_CONTENT)
+            
+            if (not pq_group_id or not model_group_id):
+                return Response(status_code=HTTP_404_NOT_FOUND)
+            
+            # Buscar el coche asignado al grupo con el ID proporcionado
+            for car in self.cars:
+                if car.id == group_id:
+                    return car
+        except:
+            return Response(status_code=HTTP_400_BAD_REQUEST)
         
-        # Buscar el coche asignado al grupo con el ID proporcionado
-        for car in self.cars:
-            if car.id == group_id:
-                return car
-        # Si no se encuentra el grupo, devolver un mensaje indicando que no se encontró el coche
-        return {"message": "No car found for the group."}
 
    
 
@@ -178,7 +218,7 @@ def init_app():
     app = FastAPI(debug=True)
     
     @app.get('/')
-    async def ready():
+    def ready():
         return Response(status_code=HTTP_200_OK)
     
     # Adding cars Endpoint
@@ -192,12 +232,12 @@ def init_app():
     async def add_journey(group : dict):
         return App.add_journey(group)
     
-    @app.post('/dropoff/{ID}')
-    async def drop_off():
-       return App.drop_off()
+    @app.post('/dropoff', status_code=HTTP_200_OK)
+    async def drop_off(group_id: int = Form(...)):
+       return App.drop_off(group_id)
 
     # Agregar endpoint para localizar un coche por ID de grupo
-    @app.post('/locate')
+    @app.post('/locate', status_code=HTTP_200_OK)
     async def locate(group_id: int = Form(...)):
         return App.locate(group_id)
 
