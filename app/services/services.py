@@ -1,5 +1,6 @@
-from priority_queue import PriorityQueue
-from model import Car, Group, Journey
+from app.helpers.priority_queue import PriorityQueue
+from app.models.model import Car, Group, Journey
+import json
 
 from fastapi import HTTPException, Response
 from starlette.requests import Request
@@ -38,7 +39,9 @@ class Application:
             raise HTTPException(status_code=400, detail="Bad Request")
 
         logging.debug(f"Cars Queue: {self.cars}")
-        return Response(status_code=HTTP_200_OK)
+        custom_response = {"status": "OK", "message": "Cars added"}
+        
+        return Response(content=json.dumps(custom_response), status_code=HTTP_200_OK, media_type="application/json")
 
     def add_journey(self, group : Group):
 

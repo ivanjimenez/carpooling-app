@@ -1,4 +1,4 @@
-import app.model as model
+import app.models.model as model
 from old.services_old import Service, GroupDoesNotExistError
 from fastapi import FastAPI, APIRouter, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError

@@ -2,11 +2,11 @@ from fastapi import FastAPI, APIRouter, BackgroundTasks, Response, Form
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError, Field
 from services import Application
-from model import Car
+from app.models.model import Car
 from typing import List
 from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED
 from starlette.requests import Request
-from logging_conf import setup as logging_conf
+from app.config.logging_conf import setup as logging_conf
 import random
 import json
 import asyncio
@@ -22,7 +22,8 @@ def init_app():
     
     @app.get('/')
     def ready():
-        return Response(status_code=HTTP_200_OK)
+        custom_response = {"status": "OK", "message": "Car-pooling is ready"}
+        return Response(content=json.dumps(custom_response), status_code=HTTP_200_OK, media_type="application/json")
     
     # Adding cars Endpoint
     @app.put('/cars')
