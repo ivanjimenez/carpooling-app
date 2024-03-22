@@ -1,8 +1,8 @@
 import logging
 from typing import List, Dict
 
-import app.models.model as model
-from app.models.model import Group
+import app.model as model
+from app.model import Group
 
 
 class ServiceError(Exception):

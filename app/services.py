@@ -1,5 +1,5 @@
-from app.helpers.priority_queue import PriorityQueue
-from app.models.model import Car, Group, Journey
+from priority_queue import PriorityQueue
+from model import Car, Group, Journey
 import json
 
 from fastapi import HTTPException, Response
@@ -68,8 +68,8 @@ class Application:
             # Intentar asignar un coche disponible
             car_assigned = None
             for car in self.cars:
-                if car.can_allocate(group_model.people):
-                    car.allocate(group_model.people)
+                if car.can_allocate(group_model.seats):
+                    car.allocate(group_model.seats)
                     group_model.car_assigned = car
                     self.journeys.add_group(group_model)
                     logging.info("Group assigned to a car.")
@@ -109,8 +109,8 @@ class Application:
 
             # Intentamos asignar el grupo a un coche
             for car in self.cars:
-                if car.can_allocate(group.people):
-                    car.allocate(group.people)
+                if car.can_allocate(group.seats):
+                    car.allocate(group.seats)
                     group.car_assigned = car
                     self.journeys.add_group(group)
                     logging.info("Priority group assigned to a car.")
@@ -153,7 +153,7 @@ class Application:
                 gr = self.journeys.get_group_by_id(group_id)
                 for car in self.cars:
                     if car.id == gr.car_assigned.id:
-                        car.deallocate(gr.people)
+                        car.deallocate(gr.seats)
                         break
 
                 # Call priority queue

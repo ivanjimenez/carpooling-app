@@ -2,14 +2,15 @@ from fastapi import FastAPI, APIRouter, BackgroundTasks, Response, Form
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError, Field
 from services import Application
-from app.models.model import Car
+from model import Car
 from typing import List
 from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED
 from starlette.requests import Request
-from app.config.logging_conf import setup as logging_conf
+from logging_conf import setup as logging_conf
 import random
 import json
 import asyncio
+
 
 Service = Application()
 app = FastAPI(debug=True)
@@ -17,8 +18,6 @@ app = FastAPI(debug=True)
 logging_conf()
 
 def init_app():
-    
-    
     
     @app.get('/')
     def ready():
@@ -47,4 +46,3 @@ def init_app():
 
     return app
 
-    

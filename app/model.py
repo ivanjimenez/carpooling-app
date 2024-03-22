@@ -30,7 +30,7 @@ class Car(BaseModel):
     
 class Group(BaseModel):
     id: int = Field(...,ge=1)
-    people: int = Field(..., ge=1, le=6)
+    seats: int = Field(..., ge=1, le=6)
     car_assigned: Optional[Car] = None
 
 class Journey(BaseModel):
