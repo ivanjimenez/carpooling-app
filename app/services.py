@@ -140,16 +140,13 @@ class Application:
                     if car.id == gr.car_assigned.id:
                         car.deallocate(gr.people)
                         self.journeys.remove_group_by_id(group_id)
+                                 
                         self.print_queue()
-                        print(f"Grupo Borrado")
                         break
-
                 # Call priority queue
-                # self.assign_cars_to_priority_groups()
-
-                
-
-                self.print_queue()
+                if (not self.grouplist.is_empty()):
+                    self.assign_cars_to_priority_groups() 
+                         
                 return Response(status_code=HTTP_200_OK)
 
             if (not pq_group_id and not model_group_id):
