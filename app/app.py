@@ -9,7 +9,7 @@ from starlette.requests import Request
 from logging_conf import setup as logging_conf
 import random
 import json
-
+from fastapi.encoders import jsonable_encoder
 import asyncio
 
 
@@ -22,7 +22,8 @@ def init_app():
     
     @app.get('/')
     def ready():
-        return Response(status_code=HTTP_200_OK)
+        payload_ready = '{"ready" : ok}'
+        return Response(status_code=HTTP_200_OK, content=payload_ready, media_type="application/json")
     
     # Adding cars Endpoint
     @app.put('/cars')
