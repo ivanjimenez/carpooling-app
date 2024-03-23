@@ -25,10 +25,11 @@ class Application:
 
         try:
             self.cars = car_list
-            logging.debug(f"Cars Queue: {self.cars}")
 
         except Exception:
             raise HTTPException(status_code=400, detail="Bad Request")
+
+        logging.debug(f"Cars Queue: {self.cars}")
 
         return Response(status_code=HTTP_200_OK)
 
@@ -144,7 +145,7 @@ class Application:
                 # Call priority queue
                 # self.assign_cars_to_priority_groups()
 
-                self.journeys.remove_group_by_id(group_id)
+                # self.journeys.remove_group_by_id(group_id)
 
                 self.print_queue()
                 return Response(status_code=HTTP_200_OK)
