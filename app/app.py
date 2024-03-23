@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter, BackgroundTasks, Response, Form
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError, Field
-from app.services import Application
+from services import Application
 from model import Car
 from typing import List
 from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED

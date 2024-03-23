@@ -1,5 +1,5 @@
-from app.priority_queue import PriorityQueue
-from app.model import Car, Group, Journey
+from priority_queue import PriorityQueue
+from model import Car, Group, Journey
 
 from fastapi import HTTPException, Response
 from starlette.requests import Request
@@ -23,21 +23,13 @@ class Application:
 
     def add_cars(self, car_list: List[Car], req : Request):
 
-        # if req.headers != 'application/json':
-        #     raise HTTPException(status_code=400, detail="Bad Request")
-
-        # for car in car_list:
-        #     if car.id < 1 or not (4 <= car.seats <= 6):
-        #         raise HTTPException(status_code=400, detail="Bad Request")
-
         try:
             self.cars = car_list
-
+            logging.debug(f"Cars Queue: {self.cars}")
 
         except Exception:
             raise HTTPException(status_code=400, detail="Bad Request")
 
-        logging.debug(f"Cars Queue: {self.cars}")
         return Response(status_code=HTTP_200_OK)
 
     def add_journey(self, group : Group):
@@ -138,6 +130,24 @@ class Application:
             # Test if group id is in priorityqueue or is in journey
             pq_group_id :bool = group_id in self.grouplist.get_group_ids()
             model_group_id : bool = group_id in self.journeys.get_all_group_ids()
+            
+            # print(f" pq_group_id: {pq_group_id}, model_group_id: {model_group_id}")
+            
+            if (model_group_id):
+                gr = self.journeys.get_group_by_id(group_id)
+                for car in self.cars:
+                    if car.id == gr.car_assigned.id:
+                        car.deallocate(gr.people)
+                        self.print_queue()
+                        break
+
+                # Call priority queue
+                # self.assign_cars_to_priority_groups()
+
+                self.journeys.remove_group_by_id(group_id)
+
+                self.print_queue()
+                return Response(status_code=HTTP_200_OK)
 
             if (not pq_group_id and not model_group_id):
                 return Response(status_code=HTTP_404_NOT_FOUND)
@@ -146,19 +156,7 @@ class Application:
                 self.grouplist.remove_group_by_id(group_id)
                 self.print_queue()
 
-            if (model_group_id):
-                gr = self.journeys.get_group_by_id(group_id)
-                for car in self.cars:
-                    if car.id == gr.car_assigned.id:
-                        car.deallocate(gr.people)
-                        break
-
-                # Call priority queue
-                self.assign_cars_to_priority_groups()
-
-                self.journeys.remove_group_by_id(group_id)
-
-                self.print_queue()
+           
 
         except:
             return Response(status_code=HTTP_400_BAD_REQUEST)
@@ -181,15 +179,18 @@ class Application:
             pq_group_id :bool = group_id in self.grouplist.get_group_ids()
             model_group_id : bool = group_id in self.journeys.get_all_group_ids()
 
+            if model_group_id:
+                 # Buscar el coche asignado al grupo con el ID proporcionado
+                for car in self.cars:
+                    if car.id == group_id:
+                        return car
+                    
             if (pq_group_id):
                 return Response(status_code=HTTP_204_NO_CONTENT)
 
-            if (not pq_group_id or not model_group_id):
+            if (not pq_group_id and not model_group_id):
                 return Response(status_code=HTTP_404_NOT_FOUND)
 
-            # Buscar el coche asignado al grupo con el ID proporcionado
-            for car in self.cars:
-                if car.id == group_id:
-                    return car
+           
         except:
             return Response(status_code=HTTP_400_BAD_REQUEST)
