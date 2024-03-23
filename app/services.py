@@ -29,7 +29,7 @@ class Application:
         except Exception:
             raise HTTPException(status_code=400, detail="Bad Request")
 
-        logging.debug(f"Cars Queue: {self.cars}")
+        self.print_queue()
 
         return Response(status_code=HTTP_200_OK)
 
@@ -82,7 +82,7 @@ class Application:
         return Response(status_code=HTTP_200_OK)
 
     def print_queue(self):
-        logging.info(f"Journeys: {self.journeys.groups}")
+        logging.info(f"Journeys: {self.journeys}")
         logging.info(f"PriorityQueue: {self.grouplist._elements}")
         logging.info(f"Cars Avail: {self.cars}")
 
@@ -139,13 +139,15 @@ class Application:
                 for car in self.cars:
                     if car.id == gr.car_assigned.id:
                         car.deallocate(gr.people)
+                        self.journeys.remove_group_by_id(group_id)
                         self.print_queue()
+                        print(f"Grupo Borrado")
                         break
 
                 # Call priority queue
                 # self.assign_cars_to_priority_groups()
 
-                # self.journeys.remove_group_by_id(group_id)
+                
 
                 self.print_queue()
                 return Response(status_code=HTTP_200_OK)
