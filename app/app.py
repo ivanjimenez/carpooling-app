@@ -21,7 +21,7 @@ def init_app():
     logging_conf()
     
     @app.get('/')
-    def ready():
+    async def ready():
         payload_ready = '{"ready" : ok}'
         return Response(status_code=HTTP_200_OK, content=payload_ready, media_type="application/json")
     
