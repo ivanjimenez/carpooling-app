@@ -35,18 +35,6 @@ class Application:
 
     def add_journey(self, group : Group):
 
-        """
-        Vale aquí serían los siguientes pasos
-        1. Una vez hecha la petición y almacenado el grupo tal vez había que meterlos con el modelo Group, 
-        pero no lo vamos a encolar porque si no hay sitio tendremos que usar otra prioridad. 
-        2. Después debe iterar sobre la lista de coches y de aquellos que están disponibles, buscar el coche
-        que tenga sitios libres para el viaje. 
-        3. En caso de no tener sitio se inserta con una prioridad  + 1, hay que tener en cuenta que igual este grupo
-        no encuentra varias veces sitio y se tiene que ir. 
-        4. De hecho si le ha pasado más veces asignamos una de +5, así nos aseguramos que no desista.
-        5. Si ha encontrado sitio asignamos el coche al grupo y restamos los sitios libres del grupo, como no se puede
-        usar otro viaje a la vez nos quedamos así.
-        """
 
         """
         Este método intenta asignar un grupo a un coche disponible.
@@ -121,10 +109,7 @@ class Application:
 
     def drop_off(self, group_id : int):
         """
-        1. Búsqueda por ID en la lista de grupos y verificar si está viajando, pues si no está viajando
-        no tiene sentido borrarlo
-        2. Si está viajando querrá decir que finalizamos viaje. Es decir, que liberamos los sitios del coche
-        y borramos el grupo de personas.
+      
         """
         try:
 
@@ -164,13 +149,7 @@ class Application:
     def locate(self, group_id: int):
 
         """
-            Aquí falta esto: 
-            [x] 204 No Content When the group is waiting to be assigned to a car.
-
-            [x] 404 Not Found When the group is not to be found.
-
-            400 Bad Request When there is a failure in the request format or the
-            payload can't be unmarshalled.
+   
         """
         try:
             logging.info(f"IDS: {self.grouplist.get_group_ids()}")
@@ -181,9 +160,10 @@ class Application:
 
             if model_group_id:
                  # Buscar el coche asignado al grupo con el ID proporcionado
-                for car in self.cars:
-                    if car.id == group_id:
-                        return car
+                for group in self.journeys.groups:
+                   
+                    if group.id == group_id:
+                        return {"id": group.id, "people": group.people}
                     
             if (pq_group_id):
                 return Response(status_code=HTTP_204_NO_CONTENT)
