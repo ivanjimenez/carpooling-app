@@ -1,9 +1,9 @@
 from priority_queue import PriorityQueue
 from model import Car, Group, Journey
-
+from pydantic import ValidationError
 from fastapi import HTTPException, Response
 from starlette.requests import Request
-from starlette.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+from starlette.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_202_ACCEPTED
 
 import logging
 from typing import List
@@ -23,18 +23,20 @@ class Application:
 
     def add_cars(self, car_list: List[Car], req : Request):
 
+        
         try:
-            self.cars = car_list
+           # Validar cada objeto Car en la lista
+            for car in car_list:
+                Car(**car.dict())
 
-        except Exception:
-            raise HTTPException(status_code=400, detail="Bad Request")
-
+        except ValidationError as ve:
+            return Response(status_code=400)
+        
+        self.cars = car_list
         self.print_queue()
-
         return Response(status_code=HTTP_200_OK)
 
     def add_journey(self, group : Group):
-
 
         """
         Este método intenta asignar un grupo a un coche disponible.
@@ -42,6 +44,9 @@ class Application:
         """
         try:
             group_model = Group(**group)
+            
+            # for journey in self.journeys.groups:
+            #     journey.car_assigned.ca
 
             # Intentar asignar un coche disponible
             car_assigned = None
@@ -52,20 +57,20 @@ class Application:
                     self.journeys.add_group(group_model)
                     logging.info("Group assigned to a car.")
                     self.print_queue()
-                    return Response(status_code=HTTP_200_OK)
+                    return Response(status_code=HTTP_202_ACCEPTED)
 
             # Si no se asigna a un coche, encolar en la cola prioritaria
             self.grouplist.enqueue_with_priority(self.LOW_PRIORITY, group_model)
             logging.info("Group enqueued in priority queue.")
             self.print_queue()
-
-
+            
             # Intentar asignar coches a grupos en la cola prioritaria
             self.assign_cars_to_priority_groups()
 
         except Exception as e:
-            logging.exception("An exception")
-            raise HTTPException(status_code=400, detail="Bad Request")
+            return Response(status_code=HTTP_400_BAD_REQUEST)
+
+
 
         return Response(status_code=HTTP_200_OK)
 
@@ -93,6 +98,7 @@ class Application:
                     self.journeys.add_group(group)
                     logging.info("Priority group assigned to a car.")
                     assigned = True
+                    self.print_queue()
                     break
 
             # Si no se puede asignar, añadimos el grupo a la lista de no asignados
@@ -109,41 +115,49 @@ class Application:
 
     def drop_off(self, group_id : int):
         """
-      
+         Elimina el viaje por identificador
+    
+        :param group_id: id del grupo a elimienar
+        :type group_id: int
+       
         """
-        try:
-
-            # Test if group id is in priorityqueue or is in journey
-            pq_group_id :bool = group_id in self.grouplist.get_group_ids()
-            model_group_id : bool = group_id in self.journeys.get_all_group_ids()
+        
+        # Test if group id is in priorityqueue or is in journey
+        pq_group_id :bool = group_id in self.grouplist.get_group_ids()
+        model_group_id : bool = group_id in self.journeys.get_all_group_ids()
+        
+        try:   
             
             # print(f" pq_group_id: {pq_group_id}, model_group_id: {model_group_id}")
+            # If group exists in journeys, deallocate seats in Car
             
             if (model_group_id):
                 gr = self.journeys.get_group_by_id(group_id)
                 for car in self.cars:
                     if car.id == gr.car_assigned.id:
                         car.deallocate(gr.people)
-                        self.journeys.remove_group_by_id(group_id)
-                                 
+                        self.journeys.remove_group_by_id(group_id)                    
                         self.print_queue()
                         break
-                # Call priority queue
+                    
+                # Call priority queue after drop the journey 
                 if (not self.grouplist.is_empty()):
                     self.assign_cars_to_priority_groups() 
                          
                 return Response(status_code=HTTP_200_OK)
-
-            if (not pq_group_id and not model_group_id):
-                return Response(status_code=HTTP_404_NOT_FOUND)
-
-            if (pq_group_id):
+            
+            # En el caso que no esté en la lista de journeys y esté n PriorityQueue
+            elif (pq_group_id):
                 self.grouplist.remove_group_by_id(group_id)
                 self.print_queue()
+                return Response(status_code=HTTP_200_OK)
+                
+            else: # (not pq_group_id and not model_group_id):
+                return Response(status_code=HTTP_404_NOT_FOUND)
 
-           
+            
 
-        except:
+        except Exception as e:
             return Response(status_code=HTTP_400_BAD_REQUEST)
 
     def locate(self, group_id: int):
